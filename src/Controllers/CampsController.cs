@@ -79,6 +79,10 @@ namespace CoreCodeCamp.Controllers
         {
             try
             {
+                var campInDb = await _repository.GetCampAsync(campModel.Moniker);
+                if (campInDb != null)
+                    return BadRequest("Moniker already in use");
+
                 var location = _linkGenerator.GetPathByAction("Get",
                     "Camps",
                     new { moniker = campModel.Moniker });
@@ -102,5 +106,53 @@ namespace CoreCodeCamp.Controllers
 
             return BadRequest();
         }
+
+        [HttpPut("{moniker}")]
+        public async Task<ActionResult<CampModel>> Put(string moniker, CampModel campModel)
+        {
+            try
+            {
+                var campInDb = await _repository.GetCampAsync(moniker);
+                if (campInDb == null)
+                    return NotFound($"Could not find camp with moniker of {moniker}");
+
+                _mapper.Map(campModel, campInDb);
+                if (await _repository.SaveChangesAsync())
+                {
+                    return _mapper.Map<CampModel>(campInDb);
+                }
+            }
+            catch (Exception)
+            {
+                return this.StatusCode(StatusCodes.Status500InternalServerError, "Database Failure");
+            }
+
+            return BadRequest();
+        }
+
+        [HttpDelete("{moniker}")]
+        public async Task<IActionResult> Delete(string moniker)
+        {
+            try
+            {
+                var campInDb = await _repository.GetCampAsync(moniker);
+                if (campInDb == null)
+                    return NotFound();
+                
+                _repository.Delete(campInDb);
+
+                if (await _repository.SaveChangesAsync())
+                {
+                    return Ok();
+                }
+            }
+            catch (Exception)
+            {
+                return this.StatusCode(StatusCodes.Status500InternalServerError, "Database Failure");
+            }
+
+            return BadRequest("Failed to delete the camp");
+        }
+
     }
 }
